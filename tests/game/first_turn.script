@@ -1,0 +1,34 @@
+# Turn one: summoning is allowed, walking is not; the computer summons too.
+seed 21
+players 1 1
+menu START GAME
+expect mode CURSOR
+expect turn == 1
+key FIRE
+menu SELECT-G
+expect selected WIZARD
+# try to walk on turn one
+key RIGHT
+key FIRE
+expect msg NO MOVEMENT ON THE FIRST TURN
+expect wizard_at 0 5 5
+# summon goblins (level 2) and a troll
+key LEFT
+key FIRE
+menu CAST
+menu GOBLINS
+expect creatures 0 == 3
+expect sound 7
+key FIRE
+menu CAST
+menu TROLL
+expect creatures 0 == 4
+expect mana 0 == 39
+expect ap == 6
+screenshot first_turn_summoned
+endturn
+expect turn == 2
+expect player == 0
+expect creatures 1 >= 2
+expect mana 0 == 41
+expect palette_only

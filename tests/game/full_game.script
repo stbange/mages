@@ -1,0 +1,11 @@
+# A human who never acts loses to the computer, which escapes through the portal.
+seed 3
+players 1 1
+menu START GAME
+repeat 60 endturn
+expect mode GAMEOVER
+expect over 1
+expect winner 1
+screenshot game_over
+key FIRE
+expect mode TITLE

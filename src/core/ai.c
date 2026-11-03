@@ -161,7 +161,7 @@ void ai_take_turn(Game *g, int player)
 {
     int wi = g->pl[player].wizard;
     game_update_vis(g, player);
-    summon_phase(g, wi);
+    if (!g->portal_open) summon_phase(g, wi);
     if (g->over) return;
     attack_spell_phase(g, wi);
     int gx, gy;

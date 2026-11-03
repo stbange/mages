@@ -113,10 +113,15 @@ static bool cmd_expect(Script *s, int argc, char **argv)
             return err(s, "expected wizard %d at %s,%s but was %d,%d", p, argv[3], argv[4], c->x, c->y);
         return true;
     }
-    if (!strcmp(w, "terrain") && argc == 5) {
+    if (!strcmp(w, "terrain") && argc >= 5) {
+        char want[32] = "";
+        for (int i = 4; i < argc; i++) {
+            if (i > 4) strncat(want, " ", sizeof want - strlen(want) - 1);
+            strncat(want, argv[i], sizeof want - strlen(want) - 1);
+        }
         Terrain t = map_get(&g->map, atoi(argv[2]), atoi(argv[3]));
-        if (strcmp(TERRAIN[t].name, argv[4]) != 0)
-            return err(s, "expected terrain %s but was %s", argv[4], TERRAIN[t].name);
+        if (strcmp(TERRAIN[t].name, want) != 0)
+            return err(s, "expected terrain %s but was %s", want, TERRAIN[t].name);
         return true;
     }
     if (!strcmp(w, "msg") && argc >= 3) {
@@ -223,6 +228,28 @@ bool script_exec_line(Script *s, const char *line)
     }
     if (!strcmp(c, "clearsound") && argc == 1) {
         u->nsfx = 0;
+        return true;
+    }
+    if (!strcmp(c, "repeat") && argc >= 3) {
+        /* repeat N command...: stops early once the game is over */
+        char rest[256] = "";
+        for (int i = 2; i < argc; i++) {
+            if (i > 2) strncat(rest, " ", sizeof rest - strlen(rest) - 1);
+            strncat(rest, argv[i], sizeof rest - strlen(rest) - 1);
+        }
+        for (int i = atoi(argv[1]); i > 0 && u->mode != M_GAMEOVER; i--) {
+            if (!script_exec_line(s, rest)) return false;
+        }
+        return true;
+    }
+    if (!strcmp(c, "endturn") && argc == 1) {
+        /* convenience: open the menu and confirm END TURN like a player */
+        if (u->mode == M_SELECTED) input(s, IN_CANCEL, 0, 0);
+        if (u->mode != M_CURSOR) return err(s, "endturn needs the map cursor (mode %s)", ui_mode_name(u->mode));
+        input(s, IN_FIRE, 0, 0);
+        char *a1[] = {"menu", "END", "TURN"};
+        if (!cmd_menu(s, 3, a1) || !cmd_menu(s, 3, a1)) return false;
+        if (u->mode == M_HANDOVER) input(s, IN_FIRE, 0, 0);
         return true;
     }
     if (!strcmp(c, "menu")) return cmd_menu(s, argc, argv);

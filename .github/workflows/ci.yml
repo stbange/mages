@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux (tests, coverage, smoke)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build gcovr libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+            libxi-dev libxss-dev libxkbcommon-dev libwayland-dev wayland-protocols libegl1-mesa-dev \
+            libasound2-dev libpulse-dev libudev-dev
+      - name: Configure (coverage)
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMAGES_COVERAGE=ON
+      - name: Build
+        run: cmake --build build
+      - name: Unit, game and smoke tests
+        run: ctest --test-dir build --output-on-failure
+      - name: Coverage (>= 95% of src/core)
+        run: |
+          gcovr --root . --filter src/core/ --object-directory build \
+                --print-summary --fail-under-line 95 \
+                --html-details build/coverage.html
+      - name: Upload coverage report and test screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-and-screenshots
+          path: |
+            build/coverage*.html
+            build/coverage*.css
+            build/screenshots/
+      - name: Release build
+        run: |
+          cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DMAGES_BUILD_TESTS=OFF
+          cmake --build build-release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mages-linux
+          path: build-release/mages
+
+  windows:
+    name: Windows (MSVC)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -A x64
+      - name: Build
+        run: cmake --build build --config Release
+      - name: Tests
+        run: ctest --test-dir build -C Release --output-on-failure
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mages-windows
+          path: build/Release/mages.exe
+
+  web:
+    name: Web (Emscripten)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 6.0.13
+      - name: Build
+        run: |
+          emcmake cmake -S . -B build-web -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-web
+      - name: Assemble site
+        run: |
+          mkdir -p site
+          cp build-web/mages.html site/index.html
+          cp build-web/mages.js build-web/mages.wasm site/
+          touch site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    needs: [linux, windows, web]
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

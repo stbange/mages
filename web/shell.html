@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#352879">
+<title>Mages</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #352879; overflow: hidden;
+    touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  #canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block;
+    background: #000; outline: none; image-rendering: pixelated; touch-action: none; }
+  #status { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: #6C5EB5; font: bold 18px monospace; letter-spacing: 2px; pointer-events: none; }
+  #rotate { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(53, 40, 121, 0.92); color: #fff; font: bold 16px monospace; text-align: center;
+    padding: 24px; box-sizing: border-box; }
+  @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
+</style>
+</head>
+<body>
+<canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+<div id="status">LOADING MAGES...</div>
+<div id="rotate" onclick="this.style.display='none'">TURN YOUR PHONE SIDEWAYS<br><br>(TAP TO PLAY ANYWAY)</div>
+<script>
+  var Module = {
+    canvas: document.getElementById('canvas'),
+    setStatus: function (t) { document.getElementById('status').textContent = t ? t.toUpperCase() : ''; },
+    onRuntimeInitialized: function () { document.getElementById('status').style.display = 'none'; }
+  };
+  window.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+  document.getElementById('canvas').focus();
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>

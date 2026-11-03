@@ -1,0 +1,16 @@
+# Two humans share the machine; each turn starts behind a hand-over screen.
+seed 5
+players 2 0
+menu START GAME
+expect mode HANDOVER
+expect player == 0
+screenshot handover
+key FIRE
+expect mode CURSOR
+endturn
+expect player == 1
+expect mode CURSOR
+expect cursor 26 26
+endturn
+expect player == 0
+expect turn == 2
