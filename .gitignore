@@ -1,0 +1,4 @@
+build*/
+/out/
+*.ppm
+.DS_Store

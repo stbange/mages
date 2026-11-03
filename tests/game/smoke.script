@@ -1,0 +1,16 @@
+# Smoke test: start a game against the computer, look around, open the 3D view.
+seed 7
+expect mode TITLE
+menu START GAME
+expect mode CURSOR
+key FIRE
+expect mode MENU
+menu SELECT-G
+expect selected WIZARD
+key VIEW
+expect mode VIEW3D
+key LEFT
+tick 20
+key FIRE
+expect mode SELECTED
+expect palette_only
