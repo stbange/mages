@@ -1,34 +1,22 @@
-# Enter a creature's eyes, look around and walk in 3D.
+# Look through a creature's eyes, walk in 3D, switch to another creature.
 seed 12
 menu START GAME
-key FIRE
-menu SELECT-G
-key FIRE
-menu CAST
-menu GOBLINS
+key CAST
+digit 1
 endturn
-# turn 2: view through the wizard's eyes
-key FIRE
-menu VIEW 3D
+key VIEW
 expect mode VIEW3D
 tick 20
 screenshot pov_inside_house
-expect palette_only
 key LEFT 2
-tick 20
 key UP
-tick 20
 expect wizard_at 0 6 5
 key DOWN
-tick 20
 key UP
 expect wizard_at 0 5 5
-key LEFT
+key NEXT
+expect mode VIEW3D
 tick 20
-screenshot pov_turned
-key VIEW
-expect mode CURSOR
-# enemy creatures cannot be viewed: VIEW on an empty square does nothing
-key DOWN 3
-key VIEW
-expect mode CURSOR
+screenshot pov_goblin
+key CANCEL
+expect mode PLAY

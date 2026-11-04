@@ -2,15 +2,13 @@
 seed 7
 expect mode TITLE
 menu START GAME
-expect mode CURSOR
-key FIRE
-expect mode MENU
-menu SELECT-G
+expect mode PLAY
 expect selected WIZARD
 key VIEW
 expect mode VIEW3D
 key LEFT
 tick 20
-key FIRE
-expect mode SELECTED
+key CANCEL
+expect mode PLAY
+expect selected WIZARD
 expect palette_only

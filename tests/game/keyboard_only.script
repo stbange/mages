@@ -1,0 +1,31 @@
+# Keyboard-only play: Tab cycles, arrows and Enter move, hotkeys act.
+seed 15
+menu START GAME
+key CAST
+digit 1
+key ENDTURN
+expect confirm 1
+key ENDTURN
+expect turn == 2
+expect selected WIZARD
+# move the cursor two squares right and press Enter
+key RIGHT 2
+key FIRE
+expect wizard_at 0 7 5
+# Tab selects the next creature that can still act
+key NEXT
+expect selected GOBLIN
+key PREV
+expect selected WIZARD
+# open the door with U (it is next to the wizard now)
+key USE
+expect terrain 8 5 OPEN DOOR
+# help overlay
+key HELP
+expect help 1
+key CANCEL
+expect help 0
+key VIEW
+expect mode VIEW3D
+key CANCEL
+expect mode PLAY

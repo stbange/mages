@@ -1,27 +1,11 @@
-# Open the house door, step outside and see the world; terrain is remembered.
+# Walk out of the house; terrain is remembered, the outside becomes visible.
 seed 4
 menu START GAME
 endturn
-# turn 2: walk the wizard to the door and open it
-key FIRE
-menu SELECT-G
-key RIGHT
-key FIRE
-key FIRE
-expect wizard_at 0 7 5
-expect terrain 8 5 DOOR
-key LEFT
-key FIRE
-menu USE
-expect terrain 8 5 OPEN DOOR
-expect msg DOOR OPENS
-key RIGHT
-key FIRE
-key FIRE
+clickmap 9 5
 expect wizard_at 0 9 5
+expect terrain 8 5 OPEN DOOR
 screenshot outside_the_house
-# the path to the east is visible now
 key RIGHT 3
-expect cursor 13 5
-expect pixel 3 189 0
+expect cursor 12 5
 expect palette_only

@@ -16,7 +16,9 @@ static bool err(Script *s, const char *fmt, ...)
 static const struct { const char *name; InputKind kind; } KEYS[] = {
     {"UP", IN_UP}, {"DOWN", IN_DOWN}, {"LEFT", IN_LEFT}, {"RIGHT", IN_RIGHT},
     {"UL", IN_UPLEFT}, {"UR", IN_UPRIGHT}, {"DL", IN_DOWNLEFT}, {"DR", IN_DOWNRIGHT},
-    {"FIRE", IN_FIRE}, {"CANCEL", IN_CANCEL}, {"NEXT", IN_NEXT}, {"VIEW", IN_VIEW},
+    {"FIRE", IN_FIRE}, {"CANCEL", IN_CANCEL}, {"NEXT", IN_NEXT}, {"PREV", IN_PREV}, {"VIEW", IN_VIEW},
+    {"CAST", IN_CAST}, {"FLY", IN_FLY}, {"PICKUP", IN_PICKUP}, {"DROP", IN_DROP}, {"DRINK", IN_DRINK},
+    {"USE", IN_USE}, {"RIDE", IN_RIDE}, {"ENDTURN", IN_END_TURN}, {"HELP", IN_HELP},
 };
 
 static bool compare(int a, const char *op, int b)
@@ -78,6 +80,22 @@ static bool cmd_expect(Script *s, int argc, char **argv)
     }
     if (!strcmp(w, "turn") && argc == 4) return expect_numeric(s, "turn", g->turn, argv[2], argv[3]);
     if (!strcmp(w, "player") && argc == 4) return expect_numeric(s, "player", g->cur, argv[2], argv[3]);
+    if (!strcmp(w, "at") && argc == 4) {
+        if (u->sel == NONE) return err(s, "nothing selected");
+        const Creature *c = &g->cr[u->sel];
+        if (c->x != atoi(argv[2]) || c->y != atoi(argv[3]))
+            return err(s, "expected selection at %s,%s but was %d,%d", argv[2], argv[3], c->x, c->y);
+        return true;
+    }
+    if (!strcmp(w, "reach") && argc == 6)
+        return expect_numeric(s, "reach", ui_reach_cost(u, atoi(argv[2]), atoi(argv[3])), argv[4], argv[5]);
+    if (!strcmp(w, "help") && argc == 3) return expect_numeric(s, "help", u->help, "==", argv[2]);
+    if (!strcmp(w, "confirm") && argc == 3) return expect_numeric(s, "confirm", u->end_confirm > 0, "==", argv[2]);
+    if (!strcmp(w, "view") && argc == 4) {
+        if (u->vx != atoi(argv[2]) || u->vy != atoi(argv[3]))
+            return err(s, "expected view %s,%s but was %d,%d", argv[2], argv[3], u->vx, u->vy);
+        return true;
+    }
     if (!strcmp(w, "over") && argc == 3) return expect_numeric(s, "over", g->over, "==", argv[2]);
     if (!strcmp(w, "winner") && argc == 3) return expect_numeric(s, "winner", g->winner, "==", argv[2]);
     if (!strcmp(w, "creatures") && argc == 5)
@@ -169,7 +187,7 @@ static bool cmd_menu(Script *s, int argc, char **argv)
         if (i > 1) strncat(want, " ", sizeof want - strlen(want) - 1);
         strncat(want, argv[i], sizeof want - strlen(want) - 1);
     }
-    if (u->mode != M_MENU && u->mode != M_SPELLS && u->mode != M_TITLE) return err(s, "no menu open");
+    if (u->mode != M_LIST && u->mode != M_TITLE) return err(s, "no list open");
     for (int i = 0; i < u->menu.n; i++) {
         if (strncmp(u->menu.label[i], want, strlen(want)) == 0) {
             Rect r = ui_menu_item_rect(u, i);
@@ -178,6 +196,30 @@ static bool cmd_menu(Script *s, int argc, char **argv)
         }
     }
     return err(s, "menu has no entry '%s'", want);
+}
+
+static void settle(Script *s)
+{
+    for (int i = 0; i < 1000 && ui_walking(s->ui); i++) frame(s);
+}
+
+static bool cmd_button(Script *s, int argc, char **argv)
+{
+    if (argc < 2) return err(s, "button needs a label");
+    char want[32] = "";
+    for (int i = 1; i < argc; i++) {
+        if (i > 1) strncat(want, " ", sizeof want - strlen(want) - 1);
+        strncat(want, argv[i], sizeof want - strlen(want) - 1);
+    }
+    Button b[MAX_BUTTONS];
+    int n = ui_buttons(s->ui, b);
+    for (int i = 0; i < n; i++) {
+        if (strncmp(b[i].label, want, strlen(want)) == 0) {
+            input(s, strcmp(argv[0], "tapbutton") ? IN_CLICK : IN_TAP, b[i].r.x + b[i].r.w / 2, b[i].r.y + b[i].r.h / 2);
+            return true;
+        }
+    }
+    return err(s, "no button '%s'", want);
 }
 
 bool script_exec_line(Script *s, const char *line)
@@ -212,6 +254,35 @@ bool script_exec_line(Script *s, const char *line)
         }
         return err(s, "unknown key '%s'", argv[1]);
     }
+    if ((!strcmp(c, "click") || !strcmp(c, "hover")) && argc == 3) {
+        input(s, c[0] == 'c' ? IN_CLICK : IN_POINT, atoi(argv[1]), atoi(argv[2]));
+        return true;
+    }
+    if ((!strcmp(c, "clickmap") || !strcmp(c, "hovermap")) && argc == 3) {
+        int sx, sy;
+        if (!ui_map_to_screen(u, atoi(argv[1]), atoi(argv[2]), &sx, &sy)) return err(s, "square not in view");
+        input(s, c[0] == 'c' ? IN_CLICK : IN_POINT, sx, sy);
+        return true;
+    }
+    if (!strcmp(c, "drag") && argc == 3) {
+        /* deliver the drag in small steps like a real pointer */
+        int dx = atoi(argv[1]), dy = atoi(argv[2]);
+        for (int i = 0; i < 4; i++) input(s, IN_DRAG, dx / 4, dy / 4);
+        return true;
+    }
+    if (!strcmp(c, "wheel") && argc == 2) {
+        input(s, IN_WHEEL, 0, atoi(argv[1]));
+        return true;
+    }
+    if (!strcmp(c, "digit") && argc == 2) {
+        input(s, IN_DIGIT, atoi(argv[1]), 0);
+        return true;
+    }
+    if (!strcmp(c, "button") || !strcmp(c, "tapbutton")) return cmd_button(s, argc, argv);
+    if (!strcmp(c, "settle") && argc == 1) {
+        settle(s);
+        return true;
+    }
     if (!strcmp(c, "tap") && argc == 3) {
         input(s, IN_TAP, atoi(argv[1]), atoi(argv[2]));
         return true;
@@ -243,17 +314,23 @@ bool script_exec_line(Script *s, const char *line)
         return true;
     }
     if (!strcmp(c, "endturn") && argc == 1) {
-        /* convenience: open the menu and confirm END TURN like a player */
-        if (u->mode == M_SELECTED) input(s, IN_CANCEL, 0, 0);
-        if (u->mode != M_CURSOR) return err(s, "endturn needs the map cursor (mode %s)", ui_mode_name(u->mode));
-        input(s, IN_FIRE, 0, 0);
-        char *a1[] = {"menu", "END", "TURN"};
-        if (!cmd_menu(s, 3, a1) || !cmd_menu(s, 3, a1)) return false;
+        /* like a player: press END TURN, confirm if asked, pass the hand-over screen */
+        if (u->mode == M_LIST || u->mode == M_TARGET) input(s, IN_CANCEL, 0, 0);
+        if (u->mode != M_PLAY && u->mode != M_VIEW3D)
+            return err(s, "endturn needs the map (mode %s)", ui_mode_name(u->mode));
+        int turn = u->game.turn, cur = u->game.cur;
+        char *a1[] = {"button", "END"}, *a2[] = {"button", "CONFIRM"};
+        if (!cmd_button(s, 2, a1)) return false;
+        if (u->end_confirm > 0 && !cmd_button(s, 2, a2)) return false;
         if (u->mode == M_HANDOVER) input(s, IN_FIRE, 0, 0);
+        if (u->mode != M_GAMEOVER && u->game.turn == turn && u->game.cur == cur) return err(s, "turn did not end");
         return true;
     }
     if (!strcmp(c, "menu")) return cmd_menu(s, argc, argv);
-    if (!strcmp(c, "expect")) return cmd_expect(s, argc, argv);
+    if (!strcmp(c, "expect")) {
+        settle(s);
+        return cmd_expect(s, argc, argv);
+    }
     if (!strcmp(c, "screenshot") && argc == 2) {
         if (!s->shot_dir) return true;
         char path[512];

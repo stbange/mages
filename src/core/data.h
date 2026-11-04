@@ -52,6 +52,7 @@ typedef struct {
     uint8_t level;
     uint8_t mana;
     uint8_t creature; /* for summons */
+    const char *desc; /* one line for the message line */
 } SpellInfo;
 
 extern const SpellInfo SPELLS[SP_COUNT];

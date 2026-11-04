@@ -1,41 +1,34 @@
-# A whole turn played only with taps, as on a phone.
+# A phone player: taps, double taps to confirm, drags to scroll, swipes in 3D.
 seed 9
-# title: tap START GAME
 tap 240 166
-expect mode CURSOR
-# the cursor starts on the wizard: one tap opens the menu
-tapmap 5 5
-expect mode MENU
-menu SELECT-G
-expect selected WIZARD
-# tap the info panel to open the creature menu, cast a dwarf
-tap 260 100
-expect mode MENU
-menu CAST
-menu DWARF
+expect mode PLAY
+tapbutton CAST
+menu 2 DWARF
 expect creatures 0 == 2
-# tapping outside a menu cancels it
-tap 260 100
-tap 40 40
-expect mode SELECTED
-# end the turn from the menu
-tap 260 100
-menu END TURN
-menu END TURN
+tapbutton END TURN
+expect confirm 1
+tapbutton CONFIRM
 expect turn == 2
-# turn 2: walk with double taps
-tapmap 5 5
-menu SELECT-G
+# first tap previews, second tap walks
 tapmap 6 5
+expect wizard_at 0 5 5
+expect msg TAP AGAIN
 tapmap 6 5
 expect wizard_at 0 6 5
-# 3D view by taps: open, turn left, turn right, step, exit
-tap 260 100
-menu VIEW 3D
+# tapping an own creature selects it at once
+tapmap 5 4
+expect selected DWARF
+# one-finger drag scrolls the map
+drag 32 0
+expect view 30 0
+drag -32 0
+expect view 0 0
+# 3D: swipe to turn, tap the middle to step, exit button
+tapbutton 3D VIEW
 expect mode VIEW3D
-tap 20 80
-tap 170 80
+drag -32 0
 tap 96 80
-tick 10
-tap 96 178
-expect mode SELECTED
+tick 20
+screenshot touch_pov
+tapbutton EXIT 3D
+expect mode PLAY

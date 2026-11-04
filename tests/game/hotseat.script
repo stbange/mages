@@ -6,10 +6,10 @@ expect mode HANDOVER
 expect player == 0
 screenshot handover
 key FIRE
-expect mode CURSOR
+expect mode PLAY
 endturn
 expect player == 1
-expect mode CURSOR
+expect mode PLAY
 expect cursor 26 26
 endturn
 expect player == 0

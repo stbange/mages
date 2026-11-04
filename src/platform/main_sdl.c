@@ -73,21 +73,30 @@ static void send(InputKind k, float x, float y)
     ui_input(&ui, (Input){k, (int)x, (int)y});
 }
 
-static InputKind key_to_input(SDL_Keycode k)
+static InputKind key_to_input(SDL_Keycode k, SDL_Keymod mod)
 {
     switch (k) {
-    case SDLK_UP: case SDLK_W: case SDLK_Q: case SDLK_KP_8: return IN_UP;
-    case SDLK_DOWN: case SDLK_S: case SDLK_A: case SDLK_KP_2: return IN_DOWN;
-    case SDLK_LEFT: case SDLK_O: case SDLK_KP_4: return IN_LEFT;
-    case SDLK_RIGHT: case SDLK_D: case SDLK_P: case SDLK_KP_6: return IN_RIGHT;
+    case SDLK_UP: case SDLK_W: case SDLK_KP_8: return IN_UP;
+    case SDLK_DOWN: case SDLK_S: case SDLK_KP_2: return IN_DOWN;
+    case SDLK_LEFT: case SDLK_A: case SDLK_KP_4: return IN_LEFT;
+    case SDLK_RIGHT: case SDLK_D: case SDLK_KP_6: return IN_RIGHT;
     case SDLK_HOME: case SDLK_KP_7: return IN_UPLEFT;
     case SDLK_PAGEUP: case SDLK_KP_9: return IN_UPRIGHT;
     case SDLK_END: case SDLK_KP_1: return IN_DOWNLEFT;
     case SDLK_PAGEDOWN: case SDLK_KP_3: return IN_DOWNRIGHT;
     case SDLK_SPACE: case SDLK_RETURN: case SDLK_KP_ENTER: case SDLK_KP_5: return IN_FIRE;
     case SDLK_ESCAPE: case SDLK_BACKSPACE: return IN_CANCEL;
-    case SDLK_TAB: case SDLK_N: return IN_NEXT;
+    case SDLK_TAB: return (mod & SDL_KMOD_SHIFT) ? IN_PREV : IN_NEXT;
     case SDLK_V: return IN_VIEW;
+    case SDLK_C: return IN_CAST;
+    case SDLK_F: return IN_FLY;
+    case SDLK_G: return IN_PICKUP;
+    case SDLK_X: return IN_DROP;
+    case SDLK_Q: return IN_DRINK;
+    case SDLK_U: return IN_USE;
+    case SDLK_R: return IN_RIDE;
+    case SDLK_T: return IN_END_TURN;
+    case SDLK_H: case SDLK_F1: return IN_HELP;
     default: return IN_NONE;
     }
 }
@@ -99,12 +108,62 @@ static InputKind button_to_input(Uint8 b)
     case SDL_GAMEPAD_BUTTON_DPAD_DOWN: return IN_DOWN;
     case SDL_GAMEPAD_BUTTON_DPAD_LEFT: return IN_LEFT;
     case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: return IN_RIGHT;
-    case SDL_GAMEPAD_BUTTON_SOUTH: case SDL_GAMEPAD_BUTTON_START: return IN_FIRE;
-    case SDL_GAMEPAD_BUTTON_EAST: case SDL_GAMEPAD_BUTTON_BACK: return IN_CANCEL;
-    case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: return IN_NEXT;
+    case SDL_GAMEPAD_BUTTON_SOUTH: return IN_FIRE;
+    case SDL_GAMEPAD_BUTTON_EAST: return IN_CANCEL;
+    case SDL_GAMEPAD_BUTTON_WEST: return IN_CAST;
     case SDL_GAMEPAD_BUTTON_NORTH: return IN_VIEW;
+    case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER: return IN_PREV;
+    case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: return IN_NEXT;
+    case SDL_GAMEPAD_BUTTON_START: return IN_END_TURN;
+    case SDL_GAMEPAD_BUTTON_BACK: return IN_HELP;
     default: return IN_NONE;
     }
+}
+
+/* One pointer gesture (mouse button or first finger): a press becomes a
+   click/tap on release unless it moved far enough to be a drag. */
+#define DRAG_THRESHOLD 4.0f
+static struct {
+    bool active, dragging, touch, clickable;
+    SDL_FingerID finger;
+    float sx, sy, lx, ly;
+} gesture;
+
+static void gesture_begin(float x, float y, bool touch, bool clickable, SDL_FingerID finger)
+{
+    gesture.active = true;
+    gesture.dragging = false;
+    gesture.touch = touch;
+    gesture.clickable = clickable;
+    gesture.finger = finger;
+    gesture.sx = gesture.lx = x;
+    gesture.sy = gesture.ly = y;
+}
+
+static void gesture_move(float x, float y)
+{
+    if (!gesture.active) return;
+    float tdx = x - gesture.sx, tdy = y - gesture.sy;
+    if (!gesture.dragging && tdx * tdx + tdy * tdy > DRAG_THRESHOLD * DRAG_THRESHOLD) {
+        gesture.dragging = true;
+        gesture.lx = gesture.sx;
+        gesture.ly = gesture.sy;
+    }
+    if (gesture.dragging) {
+        int dx = (int)(x - gesture.lx), dy = (int)(y - gesture.ly);
+        if (dx || dy) {
+            send(IN_DRAG, (float)dx, (float)dy);
+            gesture.lx += (float)dx;
+            gesture.ly += (float)dy;
+        }
+    }
+}
+
+static void gesture_end(float x, float y)
+{
+    if (!gesture.active) return;
+    gesture.active = false;
+    if (!gesture.dragging && gesture.clickable) send(gesture.touch ? IN_TAP : IN_CLICK, x, y);
 }
 
 static void handle_stick(void)
@@ -189,14 +248,20 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *e)
     (void)appstate;
     switch (e->type) {
     case SDL_EVENT_QUIT: return SDL_APP_SUCCESS;
-    case SDL_EVENT_KEY_DOWN:
+    case SDL_EVENT_KEY_DOWN: {
         ensure_audio();
         if (e->key.key == SDLK_F11 || (e->key.key == SDLK_RETURN && (e->key.mod & SDL_KMOD_ALT))) {
             SDL_SetWindowFullscreen(window, !(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN));
             break;
         }
-        send(key_to_input(e->key.key), 0, 0);
+        if (e->key.key >= SDLK_1 && e->key.key <= SDLK_9) {
+            send(IN_DIGIT, (float)(e->key.key - SDLK_1 + 1), 0);
+            break;
+        }
+        InputKind k = key_to_input(e->key.key, e->key.mod);
+        if (k != IN_NONE) send(k, 0, 0);
         break;
+    }
     case SDL_EVENT_GAMEPAD_ADDED:
         if (!pad) pad = SDL_OpenGamepad(e->gdevice.which);
         break;
@@ -210,17 +275,44 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *e)
         ensure_audio();
         send(button_to_input(e->gbutton.button), 0, 0);
         break;
+    case SDL_EVENT_MOUSE_MOTION:
+        if (e->motion.which == SDL_TOUCH_MOUSEID) break;
+        SDL_ConvertEventToRenderCoordinates(renderer, e);
+        if (!gesture.touch || !gesture.active) gesture_move(e->motion.x, e->motion.y);
+        send(IN_POINT, e->motion.x, e->motion.y);
+        break;
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
         ensure_audio();
         if (e->button.which == SDL_TOUCH_MOUSEID) break;
         SDL_ConvertEventToRenderCoordinates(renderer, e);
         if (e->button.button == SDL_BUTTON_RIGHT) send(IN_CANCEL, 0, 0);
-        else send(IN_TAP, e->button.x, e->button.y);
+        else gesture_begin(e->button.x, e->button.y, false, e->button.button == SDL_BUTTON_LEFT, 0);
+        break;
+    case SDL_EVENT_MOUSE_BUTTON_UP:
+        if (e->button.which == SDL_TOUCH_MOUSEID || gesture.touch) break;
+        SDL_ConvertEventToRenderCoordinates(renderer, e);
+        gesture_end(e->button.x, e->button.y);
+        break;
+    case SDL_EVENT_MOUSE_WHEEL:
+        if (e->wheel.y != 0) send(IN_WHEEL, 0, e->wheel.y > 0 ? -1.0f : 1.0f);
         break;
     case SDL_EVENT_FINGER_DOWN:
         ensure_audio();
+        if (gesture.active) break; /* only the first finger counts */
         SDL_ConvertEventToRenderCoordinates(renderer, e);
-        send(IN_TAP, e->tfinger.x, e->tfinger.y);
+        gesture_begin(e->tfinger.x, e->tfinger.y, true, true, e->tfinger.fingerID);
+        break;
+    case SDL_EVENT_FINGER_MOTION:
+        if (!gesture.active || !gesture.touch || e->tfinger.fingerID != gesture.finger) break;
+        SDL_ConvertEventToRenderCoordinates(renderer, e);
+        gesture_move(e->tfinger.x, e->tfinger.y);
+        break;
+    case SDL_EVENT_FINGER_UP:
+    case SDL_EVENT_FINGER_CANCELED:
+        if (!gesture.active || !gesture.touch || e->tfinger.fingerID != gesture.finger) break;
+        SDL_ConvertEventToRenderCoordinates(renderer, e);
+        if (e->type == SDL_EVENT_FINGER_CANCELED) gesture.active = false;
+        else gesture_end(e->tfinger.x, e->tfinger.y);
         break;
     default: break;
     }

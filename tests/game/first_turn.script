@@ -1,27 +1,21 @@
-# Turn one: summoning is allowed, walking is not; the computer summons too.
+# Turn one with the keyboard: summoning is allowed, walking is not.
 seed 21
 players 1 1
 menu START GAME
-expect mode CURSOR
-expect turn == 1
-key FIRE
-menu SELECT-G
+expect mode PLAY
 expect selected WIZARD
-# try to walk on turn one
 key RIGHT
 key FIRE
 expect msg NO MOVEMENT ON THE FIRST TURN
 expect wizard_at 0 5 5
-# summon goblins (level 2) and a troll
-key LEFT
-key FIRE
-menu CAST
-menu GOBLINS
+# C opens the spell book, number keys cast
+key CAST
+expect mode LIST
+digit 1
 expect creatures 0 == 3
 expect sound 7
-key FIRE
-menu CAST
-menu TROLL
+key CAST
+digit 8
 expect creatures 0 == 4
 expect mana 0 == 39
 expect ap == 6

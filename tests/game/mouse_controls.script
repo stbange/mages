@@ -1,0 +1,37 @@
+# Mouse play: click to select, click to walk (through doors), buttons, wheel, right click.
+seed 9
+click 240 166
+expect mode PLAY
+button CAST
+expect mode LIST
+menu 1 GOBLINS
+expect creatures 0 == 3
+endturn
+expect turn == 2
+# the wizard is selected; hovering shows the cost, clicking walks out of the house
+hovermap 9 5
+expect reach 9 5 == 10
+clickmap 9 5
+expect wizard_at 0 9 5
+expect terrain 8 5 OPEN DOOR
+screenshot mouse_walked_out
+# click a goblin to select it
+clickmap 5 4
+expect selected GOBLIN
+# right click deselects, the wheel picks the next creature with action points
+key CANCEL
+expect selected none
+wheel 1
+expect selected WIZARD
+wheel 1
+expect selected GOBLIN
+# 3D through the button: swipe to turn, click the middle to step, exit
+button 3D VIEW
+expect mode VIEW3D
+drag -32 0
+click 96 80
+tick 20
+screenshot mouse_pov
+button EXIT 3D
+expect mode PLAY
+expect palette_only

@@ -29,18 +29,45 @@ be the last wizard standing.
 
 ### Controls
 
-| Action | Keyboard | Gamepad | Touch / mouse |
-|---|---|---|---|
-| Move cursor | Arrows, WASD, QAOP, numpad (diagonals: numpad 7/9/1/3, Home/PgUp/End/PgDn) | D-pad, left stick | Tap a square |
-| Fire / choose | Space, Enter | A | Tap the cursor square again, or tap a menu entry |
-| Cancel | Esc, Backspace | B | Tap outside the menu (right click with a mouse) |
-| Menu | Fire on the cursor | A | Tap the info panel |
-| Next creature | Tab, N | RB | Menu → NEXT |
-| 3D view | V | Y | Menu → VIEW 3D; tap left/right third to turn, middle to step, bottom strip to exit |
-| Fullscreen | F11, Alt+Enter | | |
+Mages plays like a modern tactics game. Point at things to inspect them,
+click your creatures to select them, and click where they should go.
 
-With a creature selected, fire on a neighbouring square to move or attack.
-The cursor keeps its offset, so pressing fire again keeps walking.
+**Mouse and keyboard (Windows, Linux, browser)**
+
+| Action | Mouse | Keyboard |
+|---|---|---|
+| Inspect a square or creature | Hover | Move the cursor with Arrows/WASD (numpad or Home/PgUp/End/PgDn for diagonals) |
+| Select your creature | Left click | Enter on it, or Tab / Shift+Tab for next/previous creature with AP left |
+| Move (any distance, through doors) | Left click a green square (the path and AP cost are shown) | Enter |
+| Attack (walks next to the enemy first) | Left click a red-marked enemy | Enter |
+| Open an adjacent door | Click the door | U |
+| Cancel / deselect | Right click | Esc |
+| Scroll the map | Drag | Move the cursor to the edge |
+| Next creature | Mouse wheel | Tab |
+| Spell book | CAST button | C, then 1–9 (wheel or MORE SPELLS to page) |
+| Fly/land, pick up, drop, drink, ride/dismount | Buttons | F, G, X, Q, R |
+| 3D view of the selected creature | 3D VIEW button | V |
+| End turn | END TURN button (press again to confirm if creatures can still act) | T |
+| Help | HELP button | H or F1 |
+| Fullscreen | | F11, Alt+Enter |
+
+**In the 3D view:** turn with A/D, the arrow keys, the wheel, a click on the
+left or right third, or a drag. Step forward with W/Up or a click in the
+middle. Tab looks through the next creature's eyes. Esc, V or right-click
+returns to the map.
+
+**Phones and tablets (best in landscape)**
+
+- Tap your creature to select it.
+- Tap a square to see the move, attack or spell (path, AP cost and target),
+  then tap it again to do it.
+- Drag with one finger to scroll the map.
+- Use the big buttons for everything else.
+- In 3D, swipe to turn, tap the middle to step, and press EXIT 3D to return.
+
+**Gamepad:** d-pad or stick moves the cursor, A acts, B cancels, X casts,
+Y opens 3D, the shoulder buttons cycle creatures, Start ends the turn and
+Back shows help.
 
 ## Building
 
