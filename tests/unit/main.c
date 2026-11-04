@@ -12,6 +12,7 @@ int main(void)
     test_render();
     test_ui();
     test_script();
+    test_save();
     printf("%d checks, %d failed\n", t_count, t_fail);
     return t_fail ? 1 : 0;
 }

@@ -58,7 +58,8 @@ if(MAGES_BUILD_APP)
         set_target_properties(mages PROPERTIES WIN32_EXECUTABLE TRUE)
     endif()
     if(EMSCRIPTEN)
-        set_target_properties(mages PROPERTIES SUFFIX ".html")
+        # EM_JS needs GNU extensions
+        set_target_properties(mages PROPERTIES SUFFIX ".html" C_EXTENSIONS ON)
         target_link_options(mages PRIVATE
             -sALLOW_MEMORY_GROWTH=1
             -sSTACK_SIZE=1048576
@@ -88,7 +89,7 @@ if(MAGES_BUILD_TESTS)
 
     if(MAGES_BUILD_APP)
         add_test(NAME smoke_sdl
-            COMMAND mages --script ${CMAKE_SOURCE_DIR}/tests/game/smoke.script --frames 180)
+            COMMAND mages --script ${CMAKE_SOURCE_DIR}/tests/game/smoke.script --frames 180 --no-save)
         set_tests_properties(smoke_sdl PROPERTIES
             ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
     endif()

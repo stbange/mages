@@ -3,6 +3,7 @@
 #define MAGES_UI_H
 #include "fb.h"
 #include "game.h"
+#include "save.h"
 #include <stddef.h>
 
 typedef enum {
@@ -26,7 +27,8 @@ typedef enum { M_TITLE, M_HANDOVER, M_PLAY, M_LIST, M_TARGET, M_VIEW3D, M_GAMEOV
 typedef enum {
     A_NONE, A_CAST, A_VIEW3D, A_FLY, A_LAND, A_PICKUP, A_DROP, A_DRINK, A_RIDE, A_DISMOUNT,
     A_DOOR, A_MORE, A_NEXT, A_PREV, A_END_TURN, A_HELP, A_CANCEL, A_SPELL, A_SPELL_PAGE,
-    A_HUMANS, A_AIS, A_START, A_TURN_LEFT, A_TURN_RIGHT, A_FORWARD, A_EXIT3D, A_COUNT
+    A_HUMANS, A_AIS, A_START, A_TURN_LEFT, A_TURN_RIGHT, A_FORWARD, A_EXIT3D,
+    A_CONTINUE, A_MENU, A_QUIT, A_COUNT
 } Action;
 
 #define MENU_MAX 24
@@ -66,9 +68,15 @@ typedef struct {
 #define CONFIRM_TICKS 180
 #define MAX_PATH 64
 
+typedef enum { SAVE_NONE, SAVE_WRITE, SAVE_CLEAR } SaveRequest;
+
 typedef struct {
     Game game;
     Mode mode;
+    /* the current save (autosave); the platform persists it on request */
+    uint8_t saved[SAVE_MAX_BYTES];
+    size_t saved_len;
+    SaveRequest save_request;
     int humans, ais;
     uint64_t seed;
     /* cursor and pointer */
@@ -132,6 +140,10 @@ bool ui_attackable(const Ui *u, int ci, int *cost);
 /* True when the pending spell may be cast on the square. */
 bool ui_valid_target(const Ui *u, int x, int y);
 bool ui_walking(const Ui *u);
+/* Offer stored save bytes at start-up; returns true when valid (adds CONTINUE). */
+bool ui_offer_save(Ui *u, const uint8_t *buf, size_t len);
+/* Returns and clears the pending save request for the platform. */
+SaveRequest ui_take_save_request(Ui *u);
 /* Creature whose details the panel shows (hovered, else selected), or NONE. */
 int ui_panel_creature(const Ui *u);
 

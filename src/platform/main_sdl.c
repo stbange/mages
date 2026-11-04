@@ -7,6 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #include "audio.h"
 #include "palette.h"
 #include "script.h"
@@ -27,6 +31,84 @@ static Uint64 last_ns, acc_ns;
 static long frames_left = -1;
 static SDL_Gamepad *pad;
 static int stick_dir = -1;
+
+/* ------------------------------------------------------------ saving */
+
+static bool no_save;
+
+#ifdef __EMSCRIPTEN__
+EM_JS(void, web_save, (const uint8_t *p, int n), {
+    try {
+        let s = "";
+        for (let i = 0; i < n; i++) s += String.fromCharCode(HEAPU8[p + i]);
+        localStorage.setItem("mages.autosave", btoa(s));
+    } catch (e) { console.warn("cannot save", e); }
+});
+EM_JS(int, web_load, (uint8_t *p, int cap), {
+    try {
+        const v = localStorage.getItem("mages.autosave");
+        if (!v) return 0;
+        const s = atob(v);
+        if (s.length > cap) return 0;
+        for (let i = 0; i < s.length; i++) HEAPU8[p + i] = s.charCodeAt(i);
+        return s.length;
+    } catch (e) { return 0; }
+});
+EM_JS(void, web_clear, (void), {
+    try { localStorage.removeItem("mages.autosave"); } catch (e) {}
+});
+#else
+static char *save_path(const char *name)
+{
+    char *dir = SDL_GetPrefPath("stbange", "mages");
+    if (!dir) return NULL;
+    char *path = NULL;
+    SDL_asprintf(&path, "%s%s", dir, name);
+    SDL_free(dir);
+    return path;
+}
+#endif
+
+static void load_save(void)
+{
+    if (no_save) return;
+#ifdef __EMSCRIPTEN__
+    static uint8_t buf[SAVE_MAX_BYTES];
+    int n = web_load(buf, (int)sizeof buf);
+    if (n > 0) ui_offer_save(&ui, buf, (size_t)n);
+#else
+    char *path = save_path("autosave.sav");
+    if (!path) return;
+    size_t n = 0;
+    void *data = SDL_LoadFile(path, &n);
+    if (data) {
+        if (!ui_offer_save(&ui, data, n)) SDL_Log("ignoring invalid save %s", path);
+        SDL_free(data);
+    }
+    SDL_free(path);
+#endif
+}
+
+static void persist_save(void)
+{
+    SaveRequest r = ui_take_save_request(&ui);
+    if (r == SAVE_NONE || no_save) return;
+#ifdef __EMSCRIPTEN__
+    if (r == SAVE_WRITE) web_save(ui.saved, (int)ui.saved_len);
+    else web_clear();
+#else
+    char *path = save_path("autosave.sav"), *tmp = save_path("autosave.tmp");
+    if (path && tmp) {
+        if (r == SAVE_CLEAR) {
+            SDL_RemovePath(path);
+        } else if (!SDL_SaveFile(tmp, ui.saved, ui.saved_len) || !SDL_RenamePath(tmp, path)) {
+            SDL_Log("cannot save: %s", SDL_GetError());
+        }
+    }
+    SDL_free(path);
+    SDL_free(tmp);
+#endif
+}
 
 static void SDLCALL audio_callback(void *userdata, SDL_AudioStream *s, int additional, int total)
 {
@@ -195,6 +277,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         if (!strcmp(argv[i], "--script") && i + 1 < argc) script_path = argv[++i];
         else if (!strcmp(argv[i], "--frames") && i + 1 < argc) frames_left = strtol(argv[++i], NULL, 10);
         else if (!strcmp(argv[i], "--seed") && i + 1 < argc) seed = strtoull(argv[++i], NULL, 10);
+        else if (!strcmp(argv[i], "--no-save")) no_save = true;
     }
     SDL_SetAppMetadata("Mages", "0.1.0", "io.github.stbange.mages");
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
@@ -221,6 +304,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
     audio_init(&mixer);
     ui_init(&ui, seed);
+    load_save();
 #ifndef __EMSCRIPTEN__
     ensure_audio();
 #endif
@@ -332,6 +416,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         acc_ns -= TICK_NS;
     }
     play_pending_sounds();
+    persist_save();
     ui_render(&ui, &fb);
     for (int y = 0; y < SCREEN_H; y++)
         for (int x = 0; x < SCREEN_W; x++) rgba[y * SCREEN_W + x] = PALETTE_RGB[fb.px[y][x] & 15];

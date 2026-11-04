@@ -279,6 +279,8 @@ static void sync_game(Ui *u)
     if (u->game.over) {
         u->mode = M_GAMEOVER;
         u->path_len = u->path_pos = 0;
+        u->saved_len = 0;
+        u->save_request = SAVE_CLEAR;
         return;
     }
     if (u->sel != NONE && !sel_valid(u)) {
@@ -294,6 +296,13 @@ static void select_creature(Ui *u, int ci)
     u->armed_x = -1;
     sfx(u, SFX_SELECT);
     compute_reach(u);
+}
+
+static void autosave(Ui *u)
+{
+    SaveMeta m = {u->humans, u->ais, u->seed};
+    u->saved_len = save_write(&u->game, &m, u->saved, sizeof u->saved);
+    u->save_request = u->saved_len > 0 ? SAVE_WRITE : SAVE_NONE;
 }
 
 static void begin_player_turn(Ui *u)
@@ -312,6 +321,7 @@ static void begin_player_turn(Ui *u)
         select_creature(u, on);
     }
     u->mode = u->humans > 1 ? M_HANDOVER : M_PLAY;
+    autosave(u);
 }
 
 void ui_start_game(Ui *u)
@@ -399,7 +409,8 @@ static void menu_add(Ui *u, const char *label, Action a, int arg, bool disabled)
 Rect ui_menu_item_rect(const Ui *u, int i)
 {
     if (u->mode == M_TITLE) {
-        Rect t = {190, 132 + i * MENU_ROW, 118, MENU_ROW};
+        int first = u->menu.n > 3 ? 1 : 0; /* CONTINUE sits above the usual entries */
+        Rect t = {190, 132 + (i - first) * MENU_ROW, 118, MENU_ROW};
         return t;
     }
     Rect r = {PANEL_X + 2, MENU_Y + i * MENU_ROW, SCREEN_W - PANEL_X - 6, MENU_ROW};
@@ -413,6 +424,7 @@ static void title_menu(Ui *u)
     memset(&u->menu, 0, sizeof u->menu);
     snprintf(a, sizeof a, "PLAYERS   %d", u->humans);
     snprintf(b, sizeof b, "COMPUTER  %d", u->ais);
+    if (u->saved_len > 0) menu_add(u, "CONTINUE", A_CONTINUE, 0, false);
     menu_add(u, a, A_HUMANS, 0, false);
     menu_add(u, b, A_AIS, 0, false);
     menu_add(u, "START GAME", A_START, 0, false);
@@ -505,7 +517,7 @@ static const struct { const char *label; const char *key; } ACTION_TEXT[A_COUNT]
     [A_DOOR] = {"DOOR", "U"}, [A_MORE] = {"MORE", ""}, [A_NEXT] = {"NEXT", "TAB"},
     [A_END_TURN] = {"END TURN", "T"}, [A_HELP] = {"HELP", "H"}, [A_CANCEL] = {"CANCEL", "ESC"},
     [A_TURN_LEFT] = {"< TURN", "A"}, [A_TURN_RIGHT] = {"TURN >", "D"}, [A_FORWARD] = {"FORWARD", "W"},
-    [A_EXIT3D] = {"EXIT 3D", "V"},
+    [A_EXIT3D] = {"EXIT 3D", "V"}, [A_MENU] = {"MENU", "ESC"},
 };
 
 static void put_button(Button *b, int slot, int act, bool enabled)
@@ -537,7 +549,8 @@ int ui_buttons(const Ui *u, Button *out)
             }
             put_button(&out[n++], 1, A_VIEW3D, true);
         } else {
-            put_button(&out[n++], 0, A_HELP, true);
+            put_button(&out[n++], 0, A_MENU, true);
+            put_button(&out[n++], 1, A_HELP, true);
         }
     } else if (u->mode == M_VIEW3D) {
         put_button(&out[n++], 0, A_TURN_LEFT, true);
@@ -726,6 +739,59 @@ static void choose_spell(Ui *u, int spell)
     sync_game(u);
 }
 
+bool ui_offer_save(Ui *u, const uint8_t *buf, size_t len)
+{
+    static Game probe;
+    SaveMeta m;
+    if (len > sizeof u->saved || !save_read(&probe, &m, buf, len) || probe.over) return false;
+    memcpy(u->saved, buf, len);
+    u->saved_len = len;
+    if (u->mode == M_TITLE) {
+        title_menu(u);
+        u->menu.sel = 0;
+    }
+    return true;
+}
+
+SaveRequest ui_take_save_request(Ui *u)
+{
+    SaveRequest r = u->save_request;
+    u->save_request = SAVE_NONE;
+    return r;
+}
+
+static void continue_game(Ui *u)
+{
+    SaveMeta m;
+    if (!save_read(&u->game, &m, u->saved, u->saved_len)) return;
+    u->humans = m.humans;
+    u->ais = m.ais;
+    u->seed = m.seed;
+    u->pov = NONE;
+    u->help = false;
+    begin_player_turn(u);
+    ui_message(u, "WELCOME BACK");
+    sfx(u, SFX_TURN);
+}
+
+static void quit_to_title(Ui *u)
+{
+    static uint8_t keep[SAVE_MAX_BYTES];
+    size_t n = u->saved_len;
+    memcpy(keep, u->saved, n);
+    uint64_t seed = u->seed + 1;
+    ui_init(u, seed);
+    ui_offer_save(u, keep, n);
+}
+
+static void open_game_menu(Ui *u)
+{
+    list_begin(u, "GAME MENU", false);
+    menu_add(u, "RESUME", A_CANCEL, 0, false);
+    menu_add(u, "HELP", A_HELP, 0, false);
+    menu_add(u, "QUIT TO TITLE", A_QUIT, 0, false);
+}
+
 static void do_action(Ui *u, int act, int arg)
 {
     Game *g = &u->game;
@@ -816,12 +882,17 @@ static void do_action(Ui *u, int act, int arg)
         break;
     }
     case A_START: ui_start_game(u); break;
+    case A_CONTINUE: continue_game(u); break;
+    case A_MENU: open_game_menu(u); break;
+    case A_QUIT: quit_to_title(u); break;
     default: /* A_CANCEL */
         if (u->mode == M_VIEW3D) exit_view3d(u);
         else if (u->mode == M_TARGET) u->mode = M_PLAY;
         else if (u->sel != NONE) {
             u->sel = NONE;
             compute_reach(u);
+        } else if (u->mode == M_PLAY && arg) {
+            open_game_menu(u);
         }
         break;
     }
@@ -1107,7 +1178,7 @@ static void play_input(Ui *u, Input in)
         u->cursor_shown = true;
         act_at_cursor(u, false);
         break;
-    case IN_CANCEL: do_action(u, A_CANCEL, 0); break;
+    case IN_CANCEL: do_action(u, A_CANCEL, 1); break; /* with nothing selected: game menu */
     case IN_FLY: {
         bool air = sel_valid(u) && u->game.cr[u->sel].air;
         do_action(u, air ? A_LAND : A_FLY, 0);

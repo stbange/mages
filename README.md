@@ -65,6 +65,13 @@ returns to the map.
 - Use the big buttons for everything else.
 - In 3D, swipe to turn, tap the middle to step, and press EXIT 3D to return.
 
+**Saving:** the game saves itself at the start of each of your turns, so
+closing the window or reloading the browser tab loses nothing. Choose
+CONTINUE on the title screen to carry on. Press Esc with nothing selected
+(or the MENU button) for the game menu, where QUIT TO TITLE keeps your save.
+On Windows and Linux the save lives in your user data folder; in the browser
+it lives in the page's local storage.
+
 **Gamepad:** d-pad or stick moves the cursor, A acts, B cancels, X casts,
 Y opens 3D, the shoulder buttons cycle creatures, Start ends the turn and
 Back shows help.
@@ -113,3 +120,5 @@ cmake -S . -B build-cov -DMAGES_COVERAGE=ON -DMAGES_BUILD_APP=OFF && cmake --bui
 - `web/shell.html` is the browser page.
 
 All art, the font, the map and the text are original.
+
+See [ROADMAP.md](ROADMAP.md) for what comes next.

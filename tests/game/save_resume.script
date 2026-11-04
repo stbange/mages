@@ -1,0 +1,34 @@
+# The window closes mid-game; the save brings the exact game back.
+seed 31
+players 1 1
+menu START GAME
+expect saved 1
+key CAST
+digit 1
+endturn
+expect turn == 2
+# leave the game through the game menu: the save is kept
+key CANCEL
+key CANCEL
+expect mode LIST
+menu QUIT TO TITLE
+expect mode TITLE
+menu CONTINUE
+expect mode PLAY
+expect turn == 2
+expect creatures 0 == 3
+# a reload (closed tab) also keeps it
+reload
+expect mode TITLE
+expect saved 1
+menu CONTINUE
+expect turn == 2
+expect selected WIZARD
+clickmap 7 5
+expect wizard_at 0 7 5
+endturn
+expect turn == 3
+reload
+menu CONTINUE
+expect turn == 3
+expect creatures 0 == 3

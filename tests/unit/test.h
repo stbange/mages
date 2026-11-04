@@ -30,5 +30,6 @@ void test_audio(void);
 void test_render(void);
 void test_ui(void);
 void test_script(void);
+void test_save(void);
 
 #endif

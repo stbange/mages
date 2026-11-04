@@ -316,9 +316,10 @@ static void draw_title(Framebuffer *fb, const Ui *u)
         fb_sprite(fb, art_creature(CR_WIZARD), SPR, 14 + p * 40, 92 + (p % 2) * 6, 2, OWNER_COLOURS[p], 0, NULL);
     }
     fb_sprite(fb, art_creature(CR_DRAGON), SPR, 236, 40 + (int)((u->tick / 30) % 4), 4, C_WHITE, 0, NULL);
-    fb_rect(fb, 186, 128, 126, 50, C_BLACK);
-    fb_frame(fb, 186, 128, 126, 50, C_LBLUE);
-    fb_frame(fb, 187, 129, 124, 48, C_BLUE);
+    int top = u->menu.n > 3 ? 114 : 128; /* room for CONTINUE */
+    fb_rect(fb, 186, top, 126, 178 - top, C_BLACK);
+    fb_frame(fb, 186, top, 126, 178 - top, C_LBLUE);
+    fb_frame(fb, 187, top + 1, 124, 176 - top, C_BLUE);
     for (int i = 0; i < u->menu.n; i++) {
         Rect r = ui_menu_item_rect(u, i);
         if (i == u->menu.sel) fb_rect(fb, r.x, r.y, r.w, r.h, C_LBLUE);

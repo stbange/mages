@@ -89,6 +89,7 @@ static bool cmd_expect(Script *s, int argc, char **argv)
     }
     if (!strcmp(w, "reach") && argc == 6)
         return expect_numeric(s, "reach", ui_reach_cost(u, atoi(argv[2]), atoi(argv[3])), argv[4], argv[5]);
+    if (!strcmp(w, "saved") && argc == 3) return expect_numeric(s, "saved", u->saved_len > 0, "==", argv[2]);
     if (!strcmp(w, "help") && argc == 3) return expect_numeric(s, "help", u->help, "==", argv[2]);
     if (!strcmp(w, "confirm") && argc == 3) return expect_numeric(s, "confirm", u->end_confirm > 0, "==", argv[2]);
     if (!strcmp(w, "view") && argc == 4) {
@@ -279,6 +280,16 @@ bool script_exec_line(Script *s, const char *line)
         return true;
     }
     if (!strcmp(c, "button") || !strcmp(c, "tapbutton")) return cmd_button(s, argc, argv);
+    if (!strcmp(c, "reload") && argc == 1) {
+        /* like closing the window and starting again: only the save survives */
+        static uint8_t keep[SAVE_MAX_BYTES];
+        size_t n = u->saved_len;
+        memcpy(keep, u->saved, n);
+        ui_init(u, u->seed + 100);
+        if (n) ui_offer_save(u, keep, n);
+        frame(s);
+        return true;
+    }
     if (!strcmp(c, "settle") && argc == 1) {
         settle(s);
         return true;

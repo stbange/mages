@@ -15,29 +15,22 @@ The game SHALL render to a 320x200 pixel screen using only the 16-colour C64 pal
 - **THEN** every pixel is one of the 16 palette colours
 
 ### Requirement: Cursor and scrolling
-A flashing cursor SHALL move over the map. The map window SHALL scroll to keep the cursor in view. The message line SHALL name the creature, object or terrain under the cursor.
+The cursor SHALL follow the mouse pointer or the keyboard. The message line SHALL describe the hovered square, or the action that acting on it would perform with its AP cost. The map window SHALL scroll to keep the keyboard cursor in view and SHALL also scroll by dragging.
 
 #### Scenario: Cursor at window edge
-- **WHEN** the cursor moves past the edge of the map window
+- **WHEN** the keyboard cursor moves past the edge of the map window
 - **THEN** the window scrolls so the cursor stays visible
 
+#### Scenario: Describe the action
+- **WHEN** a creature is selected and the pointer is over an attackable enemy
+- **THEN** the message line names the attack and its AP cost
+
 ### Requirement: Info panel
-The info panel SHALL show the creature under the cursor: its name, owner, status icons (undead, flying, mount, wounded, invisible), carried objects, and bars for AP, stamina, constitution, combat and defence. For wizards it SHALL also show mana.
+The info panel SHALL show the hovered visible creature, otherwise the selected creature, otherwise the hovered square and the game status. A creature's details SHALL include its name, owner, status icons, carried objects, AP, mana for wizards, and bars for AP, stamina, constitution, combat and defence.
 
 #### Scenario: Inspecting a creature
-- **WHEN** the cursor is over a visible creature
-- **THEN** its name and stat bars are shown in the panel
-
-### Requirement: Menus
-Pressing fire SHALL open a context menu listing only the actions that are currently possible. A CANCEL entry SHALL always be present. Ending a turn SHALL require confirmation.
-
-#### Scenario: Selected wizard menu
-- **WHEN** fire is pressed on the selected wizard
-- **THEN** the menu offers CAST, END MOVE and CANCEL among the available actions
-
-#### Scenario: End turn confirmation
-- **WHEN** END TURN is chosen
-- **THEN** a confirmation menu appears and the turn only ends if confirmed
+- **WHEN** the pointer hovers over a visible enemy while another creature is selected
+- **THEN** the panel shows the enemy's details
 
 ### Requirement: Title and game over screens
 A title screen SHALL let players choose 1-4 human and 0-3 computer wizards (2-4 wizards in total). A game-over screen SHALL announce the winner and victory points.
@@ -45,3 +38,24 @@ A title screen SHALL let players choose 1-4 human and 0-3 computer wizards (2-4 
 #### Scenario: Start a game
 - **WHEN** the default settings are accepted on the title screen
 - **THEN** a game starts with one human and one computer wizard
+
+### Requirement: Action bar
+The info panel SHALL end with an action bar of buttons for the selected creature. It SHALL always contain 3D VIEW, NEXT and END TURN, plus CAST for wizards and up to two more of the currently possible actions (FLY/LAND, PICK UP, DRINK, DROP, RIDE/DISMOUNT, DOOR). Further actions SHALL go behind a MORE button. Buttons SHALL show their hotkey when a keyboard is in use and SHALL be at least 20 pixels tall.
+
+#### Scenario: Wizard selected
+- **WHEN** a wizard standing on a potion is selected
+- **THEN** the action bar shows CAST, 3D VIEW, PICK UP, NEXT and END TURN
+
+### Requirement: End turn confirmation
+Ending a turn while any own creature can still act SHALL ask for confirmation by pressing END TURN again within three seconds. Otherwise the turn SHALL end at once.
+
+#### Scenario: Creatures still able to act
+- **WHEN** END TURN is pressed while the wizard has 14 AP left
+- **THEN** the button shows CONFIRM? and the turn only ends when it is pressed again
+
+### Requirement: Help overlay
+Pressing H, F1 or the HELP button SHALL show the controls for the current input device over the map until any input is given.
+
+#### Scenario: Touch help
+- **WHEN** a touch player opens help
+- **THEN** the overlay explains tapping, double-tapping and dragging
